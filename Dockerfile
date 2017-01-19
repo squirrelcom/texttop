@@ -1,23 +1,47 @@
 FROM alpine
 COPY . /app
 
-RUN echo "http://mirror1.hs-esslingen.de/pub/Mirrors/alpine/v3.3/main" > /etc/apk/repositories
-RUN echo "http://mirror1.hs-esslingen.de/pub/Mirrors/alpine/v3.3/community" >> /etc/apk/repositories
-RUN echo "@testing http://mirror1.hs-esslingen.de/pub/Mirrors/alpine/edge/testing" >> /etc/apk/repositories
+ENV mirror "http://dl-4.alpinelinux.org/alpine"
+
+RUN echo "${mirror}/v3.3/main" > /etc/apk/repositories
+RUN echo "${mirror}/v3.3/community" >> /etc/apk/repositories
 
 # Main dependencies
-RUN apk add --no-cache bc xvfb ttf-dejavu xdotool@testing ffmpeg openssh mosh firefox dbus
+# TODO: no actual need for ffmpeg other than required by hiptext build
+RUN apk add --no-cache bc xvfb ttf-dejavu openssh mosh dbus firefox ffmpeg \
+  libxtst libxinerama libxkbcommon
 
 # Installing Hiptext, video to text renderer and our own interfacer.go
 # Keep this all in one RUN command so that the resulting Docker image is smaller.
 RUN apk --no-cache add --virtual build-dependencies \
-  build-base git go freetype-dev jpeg-dev ffmpeg-dev ragel libx11-dev libxt-dev libxext-dev \
-  && apk --no-cache add libgflags-dev@testing glog-dev@testing \
+  build-base automake autoconf cmake libtool \
+  git go freetype-dev jpeg-dev ragel ffmpeg-dev \
+  libx11-dev libxt-dev libxext-dev libxtst-dev libxinerama-dev libxkbcommon-dev \
+
   && mkdir -p build \
   && cd build \
 
-  # Currently need to use a patched vesion of hiptext that supports video streams and ffmpeg v3
-  # Watch: https://github.com/jart/hiptext/pull/27
+  # The Alpine version of xdotool is only available in edge and conflicts
+  # with other packages, so we need to compile it ourselves.
+  && git clone https://github.com/jordansissel/xdotool \
+  && cd xdotool && make && make install && cd .. \
+
+  # Glog also is only available in edge and so causes conflicts unless we
+  # compile it ourselves.
+  && git clone https://github.com/google/glog \
+  && cd glog \
+  && autoreconf -vfi \
+  && ./configure --prefix=/usr \
+  && make && make install \
+  && cd .. \
+
+  # gflags was remvoed from the Alpine repos :(
+  && git clone https://github.com/gflags/gflags \
+  && cd gflags && mkdir build && cd build \
+  && cmake -DCMAKE_INSTALL_PREFIX=/usr .. \
+  && make && make install \
+  && cd ../.. \
+
   && git clone https://github.com/tombh/hiptext \
   && cd hiptext \
   && git checkout ffmpeg-updates-and-unicode-hack \
