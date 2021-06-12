@@ -34,7 +34,7 @@ Xvfb :0 -screen 0 "$(($DESKTOP_WIDTH * 2))"x"$DESKTOP_HEIGHT"x16 > ./logs/xvfb.l
 # TODO: detect X start rather than sleep
 sleep 1
 
-echo "Starting Firefox..."
+echo "Starting Squirrel-Navigator..."
 /usr/bin/firefox >> ./logs/xvfb.log 2>&1 &
 
 # Convert the X framebuffer desktop into a video stream, but only stream the
